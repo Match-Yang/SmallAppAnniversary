@@ -85,9 +85,11 @@
 
 						<!-- 通知图标 -->
 						<view class="notification-btn" @click.stop="toggleNotification(item.id)">
-							<text class="notification-icon" :class="{ active: item.hasNotification && canNotify(item) }">
-								{{ item.hasNotification && canNotify(item) ? '🔔' : '🔕' }}
-							</text>
+							<l-icon
+								:name="item.hasNotification && canNotify(item) ? 'material-symbols:notifications-active-outline' : 'material-symbols:notifications-outline'"
+								:size="20"
+								:color="item.hasNotification && canNotify(item) ? '#ee2b5b' : '#999'"
+							></l-icon>
 						</view>
 					</view>
 				</view>
@@ -96,7 +98,7 @@
 
 		<!-- 添加分类对话框 - 底部抽屉式 -->
 		<view class="drawer-mask" v-if="showAddCategoryDialog" @click="showAddCategoryDialog = false">
-			<view class="drawer-content" @click.stop>
+			<view class="drawer-content" :class="{ 'input-focused': isInputFocused }" @click.stop>
 				<view class="modal-header">
 					<text class="modal-title">添加分类</text>
 				</view>
@@ -110,6 +112,9 @@
 							v-model="newCategoryName"
 							maxlength="10"
 							placeholder-class="input-placeholder"
+							:adjust-position="true"
+							@focus="handleInputFocus"
+							@blur="handleInputBlur"
 						/>
 					</view>
 
@@ -173,6 +178,7 @@ statusBarHeight.value = systemInfo.statusBarHeight || 0
 const showAddCategoryDialog = ref(false)
 const showDeleteCategoryDialog = ref(false)
 const categoryToDelete = ref(null)
+const isInputFocused = ref(false)
 
 // 新分类数据
 const newCategoryName = ref('')
@@ -221,6 +227,16 @@ function handleAddCategory() {
 		store.addCustomCategory(newCategoryName.value.trim(), newCategoryIcon.value)
 		showAddCategoryDialog.value = false
 	}
+}
+
+// 输入框获取焦点时的处理
+function handleInputFocus() {
+	isInputFocused.value = true
+}
+
+// 输入框失去焦点时的处理
+function handleInputBlur() {
+	isInputFocused.value = false
 }
 
 // 删除分类
@@ -282,6 +298,7 @@ onMounted(() => {
 
 .status-bar {
 	background-color: #f8f6f6;
+	width: 100%;
 }
 
 /* 顶部欢迎区域 */
@@ -470,6 +487,9 @@ onMounted(() => {
 .calendar-tag {
 	padding: 2px 6px;
 	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .calendar-tag.solar {
@@ -544,14 +564,6 @@ onMounted(() => {
 	padding: 0;
 }
 
-.notification-icon {
-	font-size: 16px;
-}
-
-.notification-icon.active {
-	color: #ee2b5b;
-}
-
 /* 弹窗 */
 .modal-mask {
 	position: fixed;
@@ -619,12 +631,23 @@ onMounted(() => {
 }
 
 .btn-modal-cancel,
-.btn-modal-confirm {
+.btn-modal-confirm,
+.btn-modal-confirm-delete {
 	flex: 1;
 	height: 44px;
 	border-radius: 8px;
 	border: none;
 	font-size: 16px;
+	padding: 0;
+	line-height: normal;
+	background-color: transparent;
+}
+
+/* 移除 uni-app button 默认边框 */
+.btn-modal-cancel::after,
+.btn-modal-confirm::after,
+.btn-modal-confirm-delete::after {
+	border: none;
 }
 
 .btn-modal-cancel {
@@ -735,6 +758,11 @@ onMounted(() => {
 	max-height: 70%;
 	display: flex;
 	flex-direction: column;
+}
+
+/* 输入框聚焦时，抽屉适配键盘 */
+.drawer-content.input-focused {
+	max-height: 80%;
 }
 
 .drawer-small {

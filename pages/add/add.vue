@@ -1,18 +1,15 @@
 <template>
 	<view class="add-page">
-		<!-- 状态栏占位 -->
-		<view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
-
-		<!-- 顶部标题栏 -->
-		<view class="top-bar">
+		<!-- 顶部标题栏 - 固定在状态栏下方 -->
+		<view class="top-bar" :style="{ top: statusBarHeight + 'px' }">
 			<view class="close-btn" @click="handleBack">
 				<l-icon name="material-symbols:close" :size="20" color="#181113"></l-icon>
 			</view>
 			<text class="page-title">{{ isEditMode ? '更新纪念日' : '添加纪念日' }}</text>
 		</view>
 
-		<!-- 表单内容区域 -->
-		<scroll-view class="form-content" scroll-y>
+		<!-- 表单内容区域 - 从标题栏下方开始 -->
+		<scroll-view class="form-content" :style="{ top: totalTopHeight + 'px', border: 'none' }" scroll-y>
 			<view class="form-container">
 				<!-- 标题输入 -->
 				<view class="input-section">
@@ -136,7 +133,6 @@
 
 					<!-- 精确时间选择 - picker-view 内联滚轮，始终显示 -->
 					<view class="time-picker-section">
-						<text class="time-label">提醒时间</text>
 						<picker-view
 							class="time-picker-view"
 							indicator-style="height: 50px;"
@@ -166,7 +162,7 @@
 				<button class="btn btn-delete" @click="showDeleteDialog = true">删除</button>
 				<button class="btn btn-primary" :disabled="!formData.title" @click="handleSave">保存</button>
 			</view>
-			<button v-else class="btn btn-primary-full" :disabled="!formData.title" @click="handleSave">保存纪念日</button>
+			<button v-else class="btn btn-primary" :disabled="!formData.title" @click="handleSave">保存纪念日</button>
 		</view>
 
 		<!-- 日期选择弹窗 -->
@@ -231,8 +227,14 @@ import CalendarPicker from '../../components/CalendarPicker/CalendarPicker.vue'
 
 const store = useAnniversaryStore()
 
-// 状态栏高度
+// 状态栏高度（包含安全区）
 const statusBarHeight = ref(0)
+const systemInfo = uni.getSystemInfoSync()
+statusBarHeight.value = systemInfo.statusBarHeight || 0
+
+// 顶部栏总高度（状态栏 + 标题栏）
+const topBarHeight = 56 // 标题栏固定高度
+const totalTopHeight = computed(() => statusBarHeight.value + topBarHeight)
 
 // 表单数据
 const formData = ref({
@@ -409,29 +411,27 @@ onMounted(() => {
 @import '../../uni.scss';
 
 .add-page {
-	display: flex;
-	flex-direction: column;
+	position: relative;
 	height: 100vh;
 	background-color: #f8f6f6;
+	border: none;
 }
 
-/* 状态栏占位 */
-.status-bar {
-	background-color: #f8f6f6;
-}
-
-/* 顶部标题栏 */
+/* 顶部标题栏 - 固定定位 */
 .top-bar {
 	position: fixed;
-	top: 0;
 	left: 0;
 	right: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 16px 20px;
+	height: 56px;
+	padding: 0 20px;
 	background-color: #f8f6f6;
 	z-index: 100;
+	border: none !important;
+	box-shadow: none !important;
+	border-bottom: none !important;
 }
 
 .close-btn {
@@ -452,21 +452,47 @@ onMounted(() => {
 	color: #181113;
 }
 
-/* 表单内容 */
+/* 表单内容 - 绝对定位，从标题栏下方开始 */
 .form-content {
-	flex: 1;
-	padding: 0;
-	padding-top: 56px;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	/* top 通过内联样式动态设置 */
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background-color: #f8f6f6;
+}
+
+.form-content::before,
+.form-content::after {
+	display: none !important;
+}
+
+/* 深度选择器 - 移除 scroll-view 内部可能的边框 */
+::v-deep .form-content {
+	border: none !important;
+}
+
+::v-deep scroll-view {
+	border: none !important;
+	border-top: none !important;
 }
 
 .form-container {
 	width: 100%;
 	padding: 16px 20px;
+	padding-bottom: 100px; /* 为底部按钮留出空间 */
 	box-sizing: border-box;
+	border: none;
+	margin: 0;
 }
 
 .input-section {
 	margin-bottom: 16px;
+	border: none !important;
+	outline: none !important;
 }
 
 .section-label {
@@ -476,6 +502,7 @@ onMounted(() => {
 	color: #181113;
 	margin-bottom: 8px;
 	padding-left: 4px;
+	border: none !important;
 }
 
 .input-field {
@@ -672,6 +699,9 @@ onMounted(() => {
 .time-picker-section {
 	padding: 0 16px;
 	margin-top: 12px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
 .time-label {
@@ -682,9 +712,11 @@ onMounted(() => {
 }
 
 .time-picker-view {
-	height: 220px;
+	height: 150px;
+	width: 50%;
 	background-color: #f0eeee;
 	border-radius: 12px;
+	overflow: hidden;
 }
 
 .picker-item {
@@ -705,13 +737,17 @@ onMounted(() => {
 	align-items: center;
 }
 
-/* 底部按钮 */
+/* 底部按钮 - 固定在底部 */
 .bottom-buttons {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
 	background-color: #f8f6f6;
 	padding: 16px 20px;
 	padding-bottom: calc(16px + env(safe-area-inset-bottom));
-	position: relative;
 	z-index: 10;
+	border: none !important;
 }
 
 .button-row {
@@ -728,6 +764,14 @@ onMounted(() => {
 	align-items: center;
 	justify-content: center;
 	border: none;
+	padding: 0;
+	line-height: normal;
+	background-color: transparent;
+}
+
+/* 移除 uni-app button 默认边框 */
+.btn::after {
+	border: none;
 }
 
 .btn-primary {
@@ -740,16 +784,15 @@ onMounted(() => {
 	background-color: #ccc;
 }
 
-.btn-primary-full {
-	width: 100%;
-	background-color: #ee2b5b;
-	color: #ffffff;
-}
-
 .btn-delete {
 	flex: 1;
 	background-color: #dd524d;
 	color: #ffffff;
+}
+
+/* 新增模式下，按钮占满宽度 */
+.bottom-buttons > .btn-primary {
+	width: 100%;
 }
 
 /* 弹窗 */
@@ -917,5 +960,32 @@ onMounted(() => {
 	border-radius: 8px;
 	border: none;
 	font-size: 16px;
+}
+
+/* 移除 uni-app button 默认边框 */
+.btn-modal-close::after,
+.btn-modal-cancel::after,
+.btn-modal-confirm::after {
+	border: none;
+}
+
+/* 移除可能导致问题的边框 - 只针对容器元素 */
+.add-page,
+.form-content,
+.form-container,
+.input-section,
+.section-label,
+.toggle-section,
+.toggle-item,
+.mode-section,
+.date-section,
+.category-section,
+.reminder-section,
+.time-section,
+.bottom-buttons,
+.button-row {
+	border-top: none !important;
+	border-left: none !important;
+	border-right: none !important;
 }
 </style>

@@ -12,7 +12,6 @@
 					<text class="arrow">›</text>
 				</view>
 			</view>
-
 			<!-- 日历内容可滚动 -->
 			<scroll-view class="calendar-scroll" scroll-y>
 				<!-- 农历信息显示 -->

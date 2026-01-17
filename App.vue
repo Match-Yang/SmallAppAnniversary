@@ -110,4 +110,13 @@
 		padding-bottom: constant(safe-area-inset-bottom);
 		padding-bottom: env(safe-area-inset-bottom);
 	}
+
+	/* 移除 scroll-view 默认边框 */
+	scroll-view {
+		border: none !important;
+		border-top: none !important;
+		border-bottom: none !important;
+		outline: none !important;
+		box-shadow: none !important;
+	}
 </style>
