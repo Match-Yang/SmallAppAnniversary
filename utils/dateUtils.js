@@ -7,13 +7,33 @@ import { CalendarType, ReminderDays } from './constants.js'
 import { solarToLunar, getLunarDayText, getLunarMonthText, getFullLunarText, getLunarYearText, getNextLunarBirthday } from './lunarCalendar.js'
 
 /**
+ * 将任意 Date/字符串 归一化为“本地日期”（去掉时分秒），避免由于时间/夏令时导致的 +1/-1 天问题
+ * @param {Date|String|Number} date
+ * @returns {Date}
+ */
+function normalizeToLocalDate(date) {
+	const d = date instanceof Date ? date : new Date(date)
+	return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+/**
+ * 把“本地日期”映射到 UTC 天数序号，用于做天数差（规避 DST 23/25 小时）
+ * @param {Date} localDate
+ * @returns {number}
+ */
+function toUtcDayNumber(localDate) {
+	const d = normalizeToLocalDate(localDate)
+	return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
+}
+
+/**
  * 计算纪念日状态
  * @param {Object} anniversary 纪念日对象
  * @param {Date|String} currentDate 当前日期
  * @returns {Object} { isUpcoming, daysRemaining, isMilestone, milestoneDays }
  */
 export function calculateAnniversaryStatus(anniversary, currentDate = new Date()) {
-	const current = currentDate instanceof Date ? currentDate : new Date(currentDate)
+	const current = normalizeToLocalDate(currentDate)
 
 	if (anniversary.isRecurring) {
 		// 重复模式：计算今年或明年的该日期
@@ -29,12 +49,12 @@ export function calculateAnniversaryStatus(anniversary, currentDate = new Date()
 		}
 	} else {
 		// 一次性模式：直接使用目标日期
-		const targetDate = new Date(anniversary.targetDate)
+		const targetDate = normalizeToLocalDate(anniversary.targetDate)
 		const daysRemaining = daysBetween(current, targetDate)
 		const isUpcoming = daysRemaining >= 0
 
 		// 一次性模式可以计算里程碑
-		const totalDays = daysBetween(new Date(anniversary.targetDate), current)
+		const totalDays = daysBetween(normalizeToLocalDate(anniversary.targetDate), current)
 		const milestone = getMilestone(totalDays)
 		const isMilestone = milestone !== null
 
@@ -54,10 +74,11 @@ export function calculateAnniversaryStatus(anniversary, currentDate = new Date()
  * @returns {Date}
  */
 export function getNextRecurringDate(anniversary, currentDate = new Date()) {
+	const current = normalizeToLocalDate(currentDate)
 	if (anniversary.calendarType === CalendarType.SOLAR) {
-		return getNextSolarRecurringDate(new Date(anniversary.targetDate), currentDate)
+		return getNextSolarRecurringDate(normalizeToLocalDate(anniversary.targetDate), current)
 	} else {
-		return getNextLunarRecurringDate(anniversary, currentDate)
+		return getNextLunarRecurringDate(anniversary, current)
 	}
 }
 
@@ -68,16 +89,18 @@ export function getNextRecurringDate(anniversary, currentDate = new Date()) {
  * @returns {Date}
  */
 function getNextSolarRecurringDate(baseDate, currentDate) {
-	const month = baseDate.getMonth()
-	const day = baseDate.getDate()
-	const currentYear = currentDate.getFullYear()
+	const base = normalizeToLocalDate(baseDate)
+	const current = normalizeToLocalDate(currentDate)
+	const month = base.getMonth()
+	const day = base.getDate()
+	const currentYear = current.getFullYear()
 
 	// 尝试构建今年的日期
 	const thisYearDate = getValidDate(currentYear, month, day)
 
 	// 如果今年的日期已过，返回明年的日期
-	if (thisYearDate < currentDate || thisYearDate.getTime() === currentDate.getTime()) {
-		if (thisYearDate < currentDate) {
+	if (thisYearDate < current || thisYearDate.getTime() === current.getTime()) {
+		if (thisYearDate < current) {
 			return getValidDate(currentYear + 1, month, day)
 		} else {
 			return thisYearDate
@@ -95,7 +118,7 @@ function getNextSolarRecurringDate(baseDate, currentDate) {
  */
 function getNextLunarRecurringDate(anniversary, currentDate) {
 	// 将公历日期转换为农历
-	const baseDate = new Date(anniversary.targetDate)
+	const baseDate = normalizeToLocalDate(anniversary.targetDate)
 	const lunarInfo = solarToLunar(baseDate)
 
 	if (!lunarInfo) {
@@ -107,7 +130,7 @@ function getNextLunarRecurringDate(anniversary, currentDate) {
 		lunarInfo.month,
 		lunarInfo.day,
 		lunarInfo.isLeapMonth,
-		currentDate
+		normalizeToLocalDate(currentDate)
 	)
 
 	return result.solarDate
@@ -146,7 +169,7 @@ function getMilestone(days) {
  * @returns {String} 如 "1月15日"
  */
 export function formatDateDisplay(date) {
-	const d = date instanceof Date ? date : new Date(date)
+	const d = normalizeToLocalDate(date)
 	return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
@@ -156,7 +179,7 @@ export function formatDateDisplay(date) {
  * @returns {String} 如 "正月初一"
  */
 export function formatLunarDateDisplay(date) {
-	const d = date instanceof Date ? date : new Date(date)
+	const d = normalizeToLocalDate(date)
 	const lunarInfo = solarToLunar(d)
 
 	if (lunarInfo) {
@@ -177,7 +200,7 @@ export function formatLunarDateDisplay(date) {
  * @returns {String}
  */
 export function formatDateDisplayByCalendar(date, calendarType, isRecurring) {
-	const d = date instanceof Date ? date : new Date(date)
+	const d = normalizeToLocalDate(date)
 
 	if (calendarType === CalendarType.LUNAR) {
 		const datePart = formatLunarDateDisplay(d)
@@ -203,12 +226,12 @@ export function formatDateDisplayByCalendar(date, calendarType, isRecurring) {
  * @returns {Date}
  */
 export function getNextTargetDate(anniversary) {
-	const currentDate = new Date()
+	const currentDate = normalizeToLocalDate(new Date())
 
 	if (anniversary.isRecurring) {
 		return getNextRecurringDate(anniversary, currentDate)
 	} else {
-		return new Date(anniversary.targetDate)
+		return normalizeToLocalDate(anniversary.targetDate)
 	}
 }
 
@@ -236,7 +259,7 @@ export function getLunarAdjustmentNote(anniversary, currentDate = new Date()) {
 		return null
 	}
 
-	const baseDate = new Date(anniversary.targetDate)
+	const baseDate = normalizeToLocalDate(anniversary.targetDate)
 	const lunarInfo = solarToLunar(baseDate)
 
 	if (!lunarInfo) return null
@@ -245,7 +268,7 @@ export function getLunarAdjustmentNote(anniversary, currentDate = new Date()) {
 		lunarInfo.month,
 		lunarInfo.day,
 		lunarInfo.isLeapMonth,
-		currentDate instanceof Date ? currentDate : new Date(currentDate)
+		normalizeToLocalDate(currentDate)
 	)
 
 	return result.adjustmentNote
@@ -258,8 +281,8 @@ export function getLunarAdjustmentNote(anniversary, currentDate = new Date()) {
  * @returns {String|null} 如 "3岁2个月"、"5年"、"15天"
  */
 export function getYearsText(anniversary, currentDate = new Date()) {
-	const current = currentDate instanceof Date ? currentDate : new Date(currentDate)
-	const targetDate = new Date(anniversary.targetDate)
+	const current = normalizeToLocalDate(currentDate)
+	const targetDate = normalizeToLocalDate(anniversary.targetDate)
 
 	let yearsPassed, monthsPassed
 
@@ -326,7 +349,7 @@ function calculateSolarYearsAndMonthsPassed(targetDate, currentDate) {
  * @returns {[Number, Number]} [年数, 月数]
  */
 function calculateLunarYearsAndMonthsPassed(anniversary, currentDate) {
-	const targetDate = new Date(anniversary.targetDate)
+	const targetDate = normalizeToLocalDate(anniversary.targetDate)
 
 	if (currentDate < targetDate) {
 		return [0, 0]
@@ -374,8 +397,7 @@ function calculateDaysPassed(startDate, endDate) {
  * @returns {Number}
  */
 function daysBetween(startDate, endDate) {
-	const oneDay = 24 * 60 * 60 * 1000
-	return Math.floor((endDate - startDate) / oneDay)
+	return toUtcDayNumber(endDate) - toUtcDayNumber(startDate)
 }
 
 /**

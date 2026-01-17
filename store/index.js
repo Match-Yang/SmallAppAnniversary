@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { getAnniversaries, saveAnniversaries, getCustomCategories, saveCustomCategories, generateUUID } from '../utils/storage.js'
 import { BuiltInCategories, CalendarType, IconColor } from '../utils/constants.js'
 import { calculateAnniversaryStatus, getLunarAdjustmentNote } from '../utils/dateUtils.js'
+import { scheduleAllReminders, init as initNotification } from '../utils/notification.js'
 
 export const useAnniversaryStore = defineStore('anniversary', {
 	state: () => ({
@@ -99,12 +100,24 @@ export const useAnniversaryStore = defineStore('anniversary', {
 		 * 初始化：从本地存储加载数据
 		 */
 		async loadFromStorage() {
+			// 初始化通知系统
+			initNotification()
+
 			const [anniversaries, customCategories] = await Promise.all([
 				getAnniversaries(),
 				getCustomCategories()
 			])
 			this.anniversaries = anniversaries
 			this.customCategories = customCategories
+
+			// 恢复所有已开启通知的纪念日提醒
+			// #ifdef APP-PLUS
+			this.anniversaries.forEach(item => {
+				if (item.hasNotification) {
+					scheduleAllReminders(item)
+				}
+			})
+			// #endif
 		},
 
 		/**
@@ -246,8 +259,12 @@ export const useAnniversaryStore = defineStore('anniversary', {
 
 			await saveAnniversaries(this.anniversaries)
 
-			// TODO: 调度通知
-			// await scheduleNotification(anniversary)
+			// 设置通知提醒
+			// #ifdef APP-PLUS
+			if (anniversary.hasNotification) {
+				scheduleAllReminders(anniversary)
+			}
+			// #endif
 
 			this.navigateToList()
 		},
@@ -282,12 +299,14 @@ export const useAnniversaryStore = defineStore('anniversary', {
 
 			await saveAnniversaries(this.anniversaries)
 
-			// TODO: 重新调度通知
-			// if (this.anniversaries[index].hasNotification) {
-			//     await scheduleNotification(this.anniversaries[index])
-			// } else {
-			//     await cancelNotification(id)
-			// }
+			// 重新调度通知
+			// #ifdef APP-PLUS
+			if (this.anniversaries[index].hasNotification) {
+				scheduleAllReminders(this.anniversaries[index])
+			}
+			// 注意：uni-app 的本地通知 API 不支持直接取消特定通知
+			// 当 hasNotification 为 false 时，通知会在到达时间后自动失效
+			// #endif
 		}
 	}
 })

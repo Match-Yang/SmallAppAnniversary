@@ -33,7 +33,8 @@
 					:class="{
 						'is-empty': cell.isEmpty,
 						'is-selected': cell.isSelected,
-						'is-today': cell.isToday
+						'is-today': cell.isToday,
+						'is-default': cell.isDefault
 					}"
 					@click="selectDate(cell)"
 				>
@@ -57,7 +58,12 @@
 				<view class="year-picker-header">
 					<text class="year-picker-title">选择年份</text>
 				</view>
-				<scroll-view class="year-list" scroll-y>
+				<scroll-view
+					class="year-list"
+					scroll-y
+					:scroll-top="yearScrollTop"
+					:scroll-with-animation="true"
+				>
 					<view
 						class="year-item"
 						:class="{ 'is-selected': year === currentYear }"
@@ -74,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { getLunarDayText, getFullLunarText, solarToLunar } from '../../utils/lunarCalendar.js'
 
 const props = defineProps({
@@ -97,6 +103,14 @@ const props = defineProps({
 
 const emit = defineEmits(['confirm', 'close'])
 
+function normalizeToLocalDate(date) {
+	if (date instanceof Date) {
+		return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+	}
+	const d = new Date(date)
+	return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
 // 当前显示的年月
 const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth() + 1)
@@ -106,15 +120,37 @@ const selectedDateObj = ref(null)
 
 // 是否显示年份选择器
 const showYearPicker = ref(false)
+const yearScrollTop = ref(0)
 
 // 星期标题
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
-// 计算当前选中的农历文本
-const selectedLunarText = computed(() => {
-	if (!selectedDateObj.value) return ''
+// 切换月份时：
+// - 如果当前月份不包含当前选择的日期，那么默认显示本月1号的农历信息
+// - 网格上本月1号背景灰色高亮
+const isSelectedInCurrentMonth = computed(() => {
+	if (!selectedDateObj.value) return false
+	const sel = selectedDateObj.value
+	if (props.isRecurring) {
+		return sel.getMonth() + 1 === currentMonth.value
+	}
+	return sel.getFullYear() === currentYear.value && sel.getMonth() + 1 === currentMonth.value
+})
 
-	const date = selectedDateObj.value
+const lunarDisplayDate = computed(() => {
+	if (isSelectedInCurrentMonth.value && selectedDateObj.value) {
+		if (props.isRecurring) {
+			// 重复模式：显示当前浏览年份的该月该日
+			return new Date(currentYear.value, currentMonth.value - 1, selectedDateObj.value.getDate())
+		}
+		return selectedDateObj.value
+	}
+	return new Date(currentYear.value, currentMonth.value - 1, 1)
+})
+
+// 农历信息显示（与 displayDate 同步）
+const selectedLunarText = computed(() => {
+	const date = lunarDisplayDate.value
 	const fullLunar = getFullLunarText(date)
 	const lunarDay = getLunarDayText(date)
 
@@ -154,31 +190,39 @@ const dateCells = computed(() => {
 	}
 
 	// 填充日期
+	const selected = selectedDateObj.value ? normalizeToLocalDate(selectedDateObj.value) : null
 	for (let day = 1; day <= daysInMonth; day++) {
 		const date = new Date(currentYear.value, currentMonth.value - 1, day)
+		const localDate = normalizeToLocalDate(date)
 		const lunar = solarToLunar(date)
 		const lunarDay = getLunarDayText(date)
 
 		// 判断是否选中
 		let isSelected = false
-		if (selectedDateObj.value && props.isRecurring) {
+		if (selected && props.isRecurring) {
 			// 重复模式：只比较月日
-			isSelected = date.getMonth() === selectedDateObj.value.getMonth() &&
-				date.getDate() === selectedDateObj.value.getDate()
-		} else if (selectedDateObj.value) {
-			// 非重复模式：比较完整日期
-			isSelected = date.getTime() === selectedDateObj.value.getTime()
+			isSelected = date.getMonth() === selected.getMonth() &&
+				date.getDate() === selected.getDate()
+		} else if (selected) {
+			// 非重复模式：比较本地日期（避免时分秒/时区导致 getTime 不相等）
+			isSelected = localDate.getFullYear() === selected.getFullYear() &&
+				localDate.getMonth() === selected.getMonth() &&
+				localDate.getDate() === selected.getDate()
 		}
 
 		// 判断是否是今天
 		const isToday = isCurrentMonth && day === today.getDate()
 
+		// 默认灰色高亮：当选中日期不在当前月时，高亮本月1号
+		const isDefault = !!selected && !isSelectedInCurrentMonth.value && day === 1
+
 		cells.push({
 			day,
-			date,
+			date: localDate,
 			isEmpty: false,
 			isSelected,
 			isToday,
+			isDefault,
 			lunarDay
 		})
 	}
@@ -210,12 +254,10 @@ function nextMonth() {
 function selectDate(cell) {
 	if (cell.isEmpty) return
 
-	selectedDateObj.value = cell.date
-
-	// 如果是重复模式，直接确认
-	if (props.isRecurring) {
-		emit('confirm', cell.date)
-	}
+	selectedDateObj.value = normalizeToLocalDate(cell.date)
+	// 点击即确认并关闭（两种模式一致）
+	emit('confirm', selectedDateObj.value)
+	emit('close')
 }
 
 // 选择年份
@@ -229,6 +271,23 @@ function handleClose() {
 	emit('close')
 }
 
+// 年份选择器弹出时：主动滚动到当前年份
+watch(showYearPicker, async (visible) => {
+	if (visible) {
+		await nextTick()
+		const itemHeightPx = 52
+		const index = yearList.value.indexOf(currentYear.value)
+		if (index >= 0) {
+			// 尽量让选中年份出现在可视区域中间附近
+			yearScrollTop.value = Math.max(0, (index - 4) * itemHeightPx)
+		} else {
+			yearScrollTop.value = 0
+		}
+	} else {
+		yearScrollTop.value = 0
+	}
+})
+
 // 监听 show 变化，初始化选中的日期
 watch(() => props.show, (newVal) => {
 	if (newVal) {
@@ -236,9 +295,10 @@ watch(() => props.show, (newVal) => {
 			const date = props.selectedDate instanceof Date ?
 				props.selectedDate :
 				new Date(props.selectedDate)
-			selectedDateObj.value = date
-			currentYear.value = date.getFullYear()
-			currentMonth.value = date.getMonth() + 1
+			const local = normalizeToLocalDate(date)
+			selectedDateObj.value = local
+			currentYear.value = local.getFullYear()
+			currentMonth.value = local.getMonth() + 1
 		} else {
 			const today = new Date()
 			selectedDateObj.value = null
@@ -254,9 +314,10 @@ onMounted(() => {
 		const date = props.selectedDate instanceof Date ?
 			props.selectedDate :
 			new Date(props.selectedDate)
-		selectedDateObj.value = date
-		currentYear.value = date.getFullYear()
-		currentMonth.value = date.getMonth() + 1
+		const local = normalizeToLocalDate(date)
+		selectedDateObj.value = local
+		currentYear.value = local.getFullYear()
+		currentMonth.value = local.getMonth() + 1
 	}
 })
 </script>
@@ -380,6 +441,10 @@ onMounted(() => {
 
 .date-cell:not(.is-empty):active {
 	background-color: rgba(238, 43, 91, 0.1);
+}
+
+.date-cell.is-default {
+	background-color: #f0eeee;
 }
 
 .date-cell.is-selected {

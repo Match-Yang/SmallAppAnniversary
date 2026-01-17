@@ -1,284 +1,91 @@
 /**
- * 简化版农历工具类
- * 纯 JavaScript 实现，不依赖外部库
- * 支持 1900-2100 年
+ * 农历工具类（UniApp）
+ *
+ * 目标：
+ * - **停止维护手写农历表/位运算**（这类实现很容易出现闰月/大小月/边界年错误）
+ * - 直接复用项目内已引入的成熟实现：`uni_modules/uni-calendar/components/uni-calendar/calendar.js`
+ *
+ * 说明：
+ * - `uni-calendar` 的 `calendar.js`（jjonline/calendar.js）是一个成熟的 1900-2100 公历/农历互转实现，
+ *   内部大量使用 `Date.UTC`/`getUTC*` 来规避 DST 导致的天数偏移问题。
+ * - 本文件提供与现有 UniApp 代码一致的 API（`solarToLunar`、`getNextLunarBirthday` 等），避免上层大改。
  */
 
-// 农历数据表 (1900-2100)
-// 每个数据包：
-// - 前4位：当年闰月月份 (0表示无闰月)
-// - 后4位：1-12月的大小月状态 (1=大月30天，0=小月29天)
-// - 最后1位：闰月大小 (1=大月，0=小月)
-// 实际上这个数据格式比较复杂，这里使用简化方案
-const LUNAR_DATA = [
-	0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
-	0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
-	0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
-	0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
-	0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
-	0x06ca0,0x0b550,0x15355,0x04da0,0x0a5d0,0x14573,0x052d0,0x0a9a8,0x0e950,0x06aa0,
-	0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
-	0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b5a0,0x195a6,
-	0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
-	0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,
-	0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
-	0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
-	0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
-	0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
-	0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0
-]
+import calendar from '../uni_modules/uni-calendar/components/uni-calendar/calendar.js'
 
-// 农历日名称
-const LUNAR_DAYS = [
-	'初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十',
-	'十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
-	'廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'
-]
-
-// 农历月名称
-const LUNAR_MONTHS = [
-	'正月', '二月', '三月', '四月', '五月', '六月',
-	'七月', '八月', '九月', '十月', '冬月', '腊月'
-]
-
-// 天干
-const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
-
-// 地支
-const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
-
-// 生肖
-const ZODIAC_ANIMALS = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪']
-
-/**
- * 获取农历年份的天数信息
- * @param {Number} year 农历年
- * @returns {Number} 农历数据
- */
-function getLunarYearData(year) {
-	return LUNAR_DATA[year - 1900] || 0
+function toDate(value) {
+	if (value instanceof Date) return value
+	return new Date(value)
 }
 
-/**
- * 获取闰月
- * @param {Number} year 农历年
- * @returns {Number} 闰月月份，0表示无闰月
- */
-function getLeapMonth(year) {
-	const data = getLunarYearData(year)
-	return (data >> 16) & 0xf
-}
-
-/**
- * 获取月份的天数
- * @param {Number} year 农历年
- * @param {Number} month 农历月 (1-12)
- * @param {Boolean} isLeap 是否闰月
- * @returns {Number} 天数 (29或30)
- */
-function getLunarMonthDays(year, month, isLeap = false) {
-	const data = getLunarYearData(year)
-
-	if (isLeap) {
-		// 闰月天数
-		return (data & 0x10000) ? 30 : 29
-	}
-
-	// 普通月份天数
-	return (data & (0x10000 >> month)) ? 30 : 29
-}
-
-/**
- * 获取农历年的总天数
- * @param {Number} year 农历年
- * @returns {Number} 总天数
- */
-function getLunarYearDays(year) {
-	let sum = 348
-	const data = getLunarYearData(year)
-
-	for (let i = 0x8000; i > 0x8; i >>= 1) {
-		sum += (data & i) ? 1 : 0
-	}
-
-	return sum + ((data & 0xf) ? ((data & 0x10000) ? 30 : 29) : 0)
+function toYMD(date) {
+	const d = toDate(date)
+	return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }
 }
 
 /**
  * 公历转农历
- * @param {Date} solarDate 公历日期
- * @returns {Object} { year, month, day, isLeapMonth }
+ * @param {Date|String|Number} solarDate
+ * @returns {{year:number, month:number, day:number, isLeapMonth:boolean} | null}
  */
 function solarToLunar(solarDate) {
-	if (!(solarDate instanceof Date)) {
-		solarDate = new Date(solarDate)
-	}
-
-	const solarYear = solarDate.getFullYear()
-	const solarMonth = solarDate.getMonth() + 1
-	const solarDay = solarDate.getDate()
-
-	// 1900年1月31日是农历1900年正月初一
-	// 计算从1900年1月31日到给定日期的天数
-	const baseDate = new Date(1900, 0, 31)
-	const offset = Math.floor((solarDate - baseDate) / 86400000)
-
-	// 从1900年开始逐年查找
-	let lunarYear = 1900
-	let daysInLunarYear = 0
-	let remainingDays = offset
-
-	while (lunarYear < 2101 && remainingDays > 0) {
-		daysInLunarYear = getLunarYearDays(lunarYear)
-		if (remainingDays < daysInLunarYear) {
-			break
-		}
-		remainingDays -= daysInLunarYear
-		lunarYear++
-	}
-
-	if (lunarYear >= 2101) {
-		// 超出范围
-		return { year: 1900, month: 1, day: 1, isLeapMonth: false }
-	}
-
-	// 查找月份
-	let lunarMonth = 1
-	let isLeapMonth = false
-	const leapMonth = getLeapMonth(lunarYear)
-	let daysInMonth = 0
-
-	while (lunarMonth < 13 && remainingDays > 0) {
-		// 检查闰月
-		if (leapMonth > 0 && lunarMonth === leapMonth && !isLeapMonth) {
-			isLeapMonth = true
-			daysInMonth = getLunarMonthDays(lunarYear, lunarMonth, true)
-		} else {
-			isLeapMonth = false
-			daysInMonth = getLunarMonthDays(lunarYear, lunarMonth, false)
-		}
-
-		if (remainingDays < daysInMonth) {
-			break
-		}
-
-		remainingDays -= daysInMonth
-
-		if (isLeapMonth && leapMonth === lunarMonth) {
-			isLeapMonth = false
-		} else {
-			lunarMonth++
-		}
-
-		if (leapMonth > 0 && lunarMonth === leapMonth && !isLeapMonth) {
-			isLeapMonth = true
-		}
-	}
-
-	const lunarDay = remainingDays + 1
-
+	const { y, m, d } = toYMD(solarDate)
+	const res = calendar.solar2lunar(y, m, d)
+	if (!res || res === -1) return null
 	return {
-		year: lunarYear,
-		month: lunarMonth,
-		day: lunarDay,
-		isLeapMonth
+		year: res.lYear,
+		month: res.lMonth,
+		day: res.lDay,
+		isLeapMonth: !!res.isLeap
 	}
 }
 
 /**
- * 农历转公历（简化版，通过向前查找）
- * @param {Number} lunarYear 农历年
- * @param {Number} lunarMonth 农历月
- * @param {Number} lunarDay 农历日
- * @param {Boolean} isLeapMonth 是否闰月
+ * 农历转公历
  * @returns {Date|null}
  */
 function lunarToSolar(lunarYear, lunarMonth, lunarDay, isLeapMonth = false) {
-	// 从农历年的1月1日开始计算
-	let daysPassed = 0
-	const leapMonth = getLeapMonth(lunarYear)
-
-	// 累加前面月份的天数
-	for (let m = 1; m < lunarMonth; m++) {
-		if (m === leapMonth) {
-			daysPassed += getLunarMonthDays(lunarYear, m, true)
-		}
-		daysPassed += getLunarMonthDays(lunarYear, m, false)
-	}
-
-	// 如果是闰月，还要加上非闰月的天数
-	if (isLeapMonth && leapMonth === lunarMonth) {
-		daysPassed += getLunarMonthDays(lunarYear, lunarMonth, false)
-	}
-
-	// 加上当月的天数（减1，因为从1日开始）
-	daysPassed += lunarDay - 1
-
-	// 1900年1月31日是农历正月初一
-	const baseDate = new Date(1900, 0, 31)
-	const solarDate = new Date(baseDate)
-	solarDate.setDate(solarDate.getDate() + daysPassed)
-
-	return solarDate
+	const res = calendar.lunar2solar(lunarYear, lunarMonth, lunarDay, !!isLeapMonth)
+	if (!res || res === -1) return null
+	return new Date(res.cYear, res.cMonth - 1, res.cDay)
 }
 
-/**
- * 获取农历日文本
- * @param {Date|String} date
- * @returns {String}
- */
 function getLunarDayText(date) {
-	const lunar = solarToLunar(date)
-	return LUNAR_DAYS[lunar.day - 1] || '初一'
+	const { y, m, d } = toYMD(date)
+	const res = calendar.solar2lunar(y, m, d)
+	return res && res !== -1 ? res.IDayCn : ''
 }
 
-/**
- * 获取农历月文本
- * @param {Date|String} date
- * @returns {String}
- */
 function getLunarMonthText(date) {
-	const lunar = solarToLunar(date)
-	return LUNAR_MONTHS[lunar.month - 1] || '正月'
+	const { y, m, d } = toYMD(date)
+	const res = calendar.solar2lunar(y, m, d)
+	if (!res || res === -1) return ''
+	// `IMonthCn` 可能包含“闰”前缀；上层会根据 `isLeapMonth` 自己加“闰”
+	return String(res.IMonthCn || '').replace(/^闰/, '')
 }
 
-/**
- * 获取完整农历日期文本
- * @param {Date|String} date
- * @returns {String}
- */
-function getFullLunarText(date) {
-	const lunar = solarToLunar(date)
-	const year = getLunarYearText(date)
-	const month = LUNAR_MONTHS[lunar.month - 1]
-	const day = LUNAR_DAYS[lunar.day - 1]
-	const leapPrefix = lunar.isLeapMonth ? '闰' : ''
-	return `${year}年${leapPrefix}${month}${day}`
-}
-
-/**
- * 获取农历年份文本（中文）
- * @param {Date|String} date
- * @returns {String}
- */
 function getLunarYearText(date) {
 	const lunar = solarToLunar(date)
-	const year = lunar.year
-
-	// 转换为中文数字
+	if (!lunar) return ''
 	const digits = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九']
-	let result = ''
+	return String(lunar.year)
+		.split('')
+		.map(ch => digits[Number(ch)] ?? ch)
+		.join('')
+}
 
-	const yearStr = year.toString()
-	for (let i = 0; i < yearStr.length; i++) {
-		result += digits[parseInt(yearStr[i])]
-	}
-
-	return result
+function getFullLunarText(date) {
+	const lunar = solarToLunar(date)
+	if (!lunar) return ''
+	const leapPrefix = lunar.isLeapMonth ? '闰' : ''
+	const month = getLunarMonthText(date)
+	const day = getLunarDayText(date)
+	return `${getLunarYearText(date)}年${leapPrefix}${month}${day}`
 }
 
 /**
  * 计算下一个农历生日的公历日期
+ * 参考 Android 原生实现，通过向后查找匹配的农历日期
  * @param {Number} lunarMonth 农历月
  * @param {Number} lunarDay 农历日
  * @param {Boolean} isLeapMonth 是否闰月
@@ -286,12 +93,11 @@ function getLunarYearText(date) {
  * @returns {Object} { solarDate, adjustmentNote, actualLunarDay }
  */
 function getNextLunarBirthday(lunarMonth, lunarDay, isLeapMonth = false, fromDate = new Date()) {
-	const currentLunar = solarToLunar(fromDate)
-
-	// 首先检查今天是否就是目标日期
-	if (currentLunar.month === lunarMonth &&
-		currentLunar.day === lunarDay &&
-		currentLunar.isLeapMonth === isLeapMonth) {
+	// 首先检查今天的农历日期是否匹配
+	const todayLunar = solarToLunar(fromDate)
+	if (todayLunar.month === lunarMonth &&
+		todayLunar.day === lunarDay &&
+		todayLunar.isLeapMonth === isLeapMonth) {
 		return {
 			solarDate: fromDate,
 			adjustmentNote: null,
@@ -299,50 +105,79 @@ function getNextLunarBirthday(lunarMonth, lunarDay, isLeapMonth = false, fromDat
 		}
 	}
 
-	// 尝试今年的日期
-	let tryYear = currentLunar.year
-	let foundDate = null
-	let adjustmentNote = null
-	let actualLunarDay = lunarDay
+	// 向后查找最多800天（约2年多）
+	for (let daysToAdd = 1; daysToAdd <= 800; daysToAdd++) {
+		const searchDate = new Date(fromDate)
+		searchDate.setDate(searchDate.getDate() + daysToAdd)
 
-	// 最多查找3年
-	for (let yearOffset = 0; yearOffset < 3; yearOffset++) {
-		const tryLunarYear = currentLunar.year + yearOffset
+		const lunarInfo = solarToLunar(searchDate)
 
-		// 检查是否有闰月
-		const leapMonth = getLeapMonth(tryLunarYear)
-
-		// 检查目标月是否存在
-		if (isLeapMonth && leapMonth !== lunarMonth) {
-			// 今年没有这个闰月
-			adjustmentNote = `无闰${LUNAR_MONTHS[lunarMonth - 1]}，已调整为${LUNAR_MONTHS[lunarMonth - 1]}`
-		}
-
-		// 检查日期是否存在（大小月）
-		const daysInMonth = getLunarMonthDays(tryLunarYear, lunarMonth, isLeapMonth)
-		if (lunarDay > daysInMonth && yearOffset === 0) {
-			adjustmentNote = `${LUNAR_MONTHS[lunarMonth - 1]}小月，已调整为廿九`
-			actualLunarDay = 29
-		}
-
-		// 尝试转换
-		try {
-			const solarDate = lunarToSolar(tryLunarYear, lunarMonth, actualLunarDay, isLeapMonth && leapMonth === lunarMonth)
-
-			if (solarDate && solarDate >= fromDate) {
-				foundDate = solarDate
-				break
+		// 检查农历月和日是否匹配
+		if (lunarInfo.month === lunarMonth && lunarInfo.day === lunarDay) {
+			// 检查闰月匹配
+			let isLeapMatch = false
+			if (isLeapMonth) {
+				// 用户指定闰月，必须匹配闰月
+				isLeapMatch = lunarInfo.isLeapMonth
+			} else {
+				// 用户指定非闰月，匹配非闰月
+				isLeapMatch = !lunarInfo.isLeapMonth
 			}
-		} catch (e) {
-			// 继续尝试下一年
+
+			if (isLeapMatch) {
+				return {
+					solarDate: searchDate,
+					adjustmentNote: null,
+					actualLunarDay: lunarDay
+				}
+			}
 		}
 	}
 
-	if (foundDate) {
-		return {
-			solarDate: foundDate,
-			adjustmentNote,
-			actualLunarDay
+	// 如果没找到，可能是闰月不存在，尝试使用非闰月
+	if (isLeapMonth) {
+		for (let daysToAdd = 1; daysToAdd <= 800; daysToAdd++) {
+			const searchDate = new Date(fromDate)
+			searchDate.setDate(searchDate.getDate() + daysToAdd)
+
+			const lunarInfo = solarToLunar(searchDate)
+
+			// 查找非闰月的匹配
+			if (lunarInfo.month === lunarMonth && lunarInfo.day === lunarDay && !lunarInfo.isLeapMonth) {
+				return {
+					solarDate: searchDate,
+					adjustmentNote: `无闰${LUNAR_MONTHS[lunarMonth - 1]}，已调整为${LUNAR_MONTHS[lunarMonth - 1]}`,
+					actualLunarDay: lunarDay
+				}
+			}
+		}
+	}
+
+	// 如果30号没找到，可能是小月，尝试29号
+	if (lunarDay === 30) {
+		for (let daysToAdd = 1; daysToAdd <= 800; daysToAdd++) {
+			const searchDate = new Date(fromDate)
+			searchDate.setDate(searchDate.getDate() + daysToAdd)
+
+			const lunarInfo = solarToLunar(searchDate)
+
+			// 查找29号的匹配
+			if (lunarInfo.month === lunarMonth && lunarInfo.day === 29) {
+				let isLeapMatch = false
+				if (isLeapMonth) {
+					isLeapMatch = lunarInfo.isLeapMonth
+				} else {
+					isLeapMatch = !lunarInfo.isLeapMonth
+				}
+
+				if (isLeapMatch) {
+					return {
+						solarDate: searchDate,
+						adjustmentNote: `${LUNAR_MONTHS[lunarMonth - 1]}小月，已调整为廿九`,
+						actualLunarDay: 29
+					}
+				}
+			}
 		}
 	}
 
@@ -408,6 +243,23 @@ export {
 	getLunarYearText,
 	getNextLunarBirthday,
 	getLunarFestival,
+	// 兼容旧导出：提供与旧签名一致的闰月/月天数查询（底层委托给 uni-calendar）
 	getLeapMonth,
 	getLunarMonthDays
+}
+
+/**
+ * 兼容旧导出：获取闰月月份（0 表示无闰月）
+ */
+function getLeapMonth(year) {
+	return calendar.leapMonth(year)
+}
+
+/**
+ * 兼容旧导出：获取农历月天数（29/30）
+ * 注意：旧实现支持 isLeap 参数；uni-calendar 的闰月天数通过 `leapDays` 获取
+ */
+function getLunarMonthDays(year, month, isLeap = false) {
+	if (isLeap) return calendar.leapDays(year)
+	return calendar.monthDays(year, month)
 }
