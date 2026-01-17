@@ -61,7 +61,8 @@
 				<scroll-view
 					class="year-list"
 					scroll-y
-					:scroll-top="yearScrollTop"
+					:key="yearScrollKey"
+					:scroll-into-view="yearScrollIntoView"
 					:scroll-with-animation="true"
 				>
 					<view
@@ -69,6 +70,7 @@
 						:class="{ 'is-selected': year === currentYear }"
 						v-for="year in yearList"
 						:key="year"
+						:id="`year-${year}`"
 						@click="selectYear(year)"
 					>
 						<text class="year-text">{{ year }}年</text>
@@ -118,22 +120,30 @@ const currentMonth = ref(new Date().getMonth() + 1)
 // 选中的日期
 const selectedDateObj = ref(null)
 
+// 记录选中日期所在的年份（用于判断是否切换到了非当前年份）
+const selectedYear = ref(new Date().getFullYear())
+
 // 是否显示年份选择器
 const showYearPicker = ref(false)
-const yearScrollTop = ref(0)
+const yearScrollIntoView = ref('')
+const yearScrollKey = ref(0)
 
 // 星期标题
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
-// 切换月份时：
-// - 如果当前月份不包含当前选择的日期，那么默认显示本月1号的农历信息
-// - 网格上本月1号背景灰色高亮
+// 判断选中日期是否在当前浏览的年月中
+// - 重复模式：当前年份 = 选中年份 且 月份匹配
+// - 非重复模式：年份和月份都匹配
 const isSelectedInCurrentMonth = computed(() => {
 	if (!selectedDateObj.value) return false
 	const sel = selectedDateObj.value
+
 	if (props.isRecurring) {
-		return sel.getMonth() + 1 === currentMonth.value
+		// 重复模式：必须是选中日期所在的年份，且月份匹配
+		return currentYear.value === selectedYear.value &&
+			sel.getMonth() + 1 === currentMonth.value
 	}
+	// 非重复模式：必须年份和月份都匹配
 	return sel.getFullYear() === currentYear.value && sel.getMonth() + 1 === currentMonth.value
 })
 
@@ -200,8 +210,10 @@ const dateCells = computed(() => {
 		// 判断是否选中
 		let isSelected = false
 		if (selected && props.isRecurring) {
-			// 重复模式：只比较月日
-			isSelected = date.getMonth() === selected.getMonth() &&
+			// 重复模式：只比较月日，但只在选中日期所在的月份显示
+			// 如果切换到其他月份，不显示选中状态
+			isSelected = isSelectedInCurrentMonth.value &&
+				date.getMonth() === selected.getMonth() &&
 				date.getDate() === selected.getDate()
 		} else if (selected) {
 			// 非重复模式：比较本地日期（避免时分秒/时区导致 getTime 不相等）
@@ -263,6 +275,7 @@ function selectDate(cell) {
 // 选择年份
 function selectYear(year) {
 	currentYear.value = year
+	// 月份保持不变，不需要额外操作
 	showYearPicker.value = false
 }
 
@@ -271,21 +284,37 @@ function handleClose() {
 	emit('close')
 }
 
-// 年份选择器弹出时：主动滚动到当前年份
+// 年份选择器弹出时：使用“强制重建 + 轻微延迟设置锚点”的方式，兼容部分端 scroll-* 首次不生效的问题
 watch(showYearPicker, async (visible) => {
-	if (visible) {
-		await nextTick()
-		const itemHeightPx = 52
-		const index = yearList.value.indexOf(currentYear.value)
-		if (index >= 0) {
-			// 尽量让选中年份出现在可视区域中间附近
-			yearScrollTop.value = Math.max(0, (index - 4) * itemHeightPx)
-		} else {
-			yearScrollTop.value = 0
-		}
-	} else {
-		yearScrollTop.value = 0
+	if (!visible) {
+		yearScrollIntoView.value = ''
+		return
 	}
+
+	// 强制重建列表
+	yearScrollKey.value++
+
+	// 清空后重新设置，确保触发滚动
+	yearScrollIntoView.value = ''
+	await nextTick()
+
+	// 延迟设置，确保DOM已更新
+	setTimeout(() => {
+		yearScrollIntoView.value = `year-${currentYear.value}`
+	}, 100)
+})
+
+// 弹窗打开期间，如果年份变化（例如点击年份），也同步滚动定位
+watch(currentYear, async () => {
+	if (!showYearPicker.value) return
+
+	// 清空后重新设置，确保触发滚动
+	yearScrollIntoView.value = ''
+	await nextTick()
+
+	setTimeout(() => {
+		yearScrollIntoView.value = `year-${currentYear.value}`
+	}, 50)
 })
 
 // 监听 show 变化，初始化选中的日期
@@ -299,11 +328,14 @@ watch(() => props.show, (newVal) => {
 			selectedDateObj.value = local
 			currentYear.value = local.getFullYear()
 			currentMonth.value = local.getMonth() + 1
+			// 记录选中日期所在的年份
+			selectedYear.value = local.getFullYear()
 		} else {
 			const today = new Date()
 			selectedDateObj.value = null
 			currentYear.value = today.getFullYear()
 			currentMonth.value = today.getMonth() + 1
+			selectedYear.value = today.getFullYear()
 		}
 	}
 })
@@ -318,6 +350,7 @@ onMounted(() => {
 		selectedDateObj.value = local
 		currentYear.value = local.getFullYear()
 		currentMonth.value = local.getMonth() + 1
+		selectedYear.value = local.getFullYear()
 	}
 })
 </script>
@@ -549,7 +582,7 @@ onMounted(() => {
 }
 
 .year-list {
-	flex: 1;
+	height: 400px;
 	overflow-y: auto;
 }
 
