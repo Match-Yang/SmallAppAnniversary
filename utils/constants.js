@@ -58,42 +58,34 @@ export const StorageKeys = {
 }
 
 // 分类图标列表
-// 使用 uni-icons 组件
+// 使用 lime-icon 组件，来源：https://icones.js.org/collection/material-symbols
 export const CategoryIcons = [
-	{ name: 'favorite', value: 'favorite', label: '爱心', type: 'heart-filled', emoji: '♥' },
-	{ name: 'cake', value: 'cake', label: '蛋糕', type: 'calendar', emoji: '🎂' },
-	{ name: 'event', value: 'event', label: '事件', type: 'calendar-filled', emoji: '📅' },
-	{ name: 'star', value: 'star', label: '星星', type: 'star-filled', emoji: '⭐' },
-	{ name: 'heart', value: 'heart', label: '心形', type: 'heart', emoji: '❤️' },
-	{ name: 'gift', value: 'gift', label: '礼物', type: 'gift-filled', emoji: '🎁' },
-	{ name: 'balloon', value: 'balloon', label: '气球', type: 'flag-filled', emoji: '🎈' },
-	{ name: 'flower', value: 'flower', label: '花朵', type: 'fire-filled', emoji: '🌸' }
+	{ name: 'cake', value: 'cake', label: '蛋糕', iconName: 'material-symbols:cake-outline' },
+	{ name: 'favorite', value: 'favorite', label: '爱心', iconName: 'material-symbols:favorite-outline' },
+	{ name: 'celebration', value: 'celebration', label: '庆祝', iconName: 'material-symbols:celebration-outline' },
+	{ name: 'home', value: 'home', label: '家', iconName: 'material-symbols:home-outline' },
+	{ name: 'car', value: 'car', label: '汽车', iconName: 'material-symbols:directions-car-outline' },
+	{ name: 'book', value: 'book', label: '学习', iconName: 'material-symbols:book-ribbon-outline' },
+	{ name: 'flag', value: 'flag', label: '标记', iconName: 'material-symbols:flag-outline' },
+	{ name: 'trophy', value: 'trophy', label: '奖杯', iconName: 'material-symbols:workspace-premium-outline' }
 ]
 
-// 图标到 emoji 的映射（用于列表显示）
-export const IconEmojiMap = {
-	favorite: '♥',
-	cake: '🎂',
-	event: '📅',
-	star: '⭐',
-	heart: '❤️',
-	gift: '🎁',
-	balloon: '🎈',
-	flower: '🌸',
-	apps: '☰'
+// 图标到 lime-icon name 的映射
+export const IconLimeNameMap = {
+	cake: 'material-symbols:cake-outline',
+	favorite: 'material-symbols:favorite-outline',
+	celebration: 'material-symbols:celebration-outline',
+	home: 'material-symbols:home-outline',
+	car: 'material-symbols:directions-car-outline',
+	book: 'material-symbols:book-ribbon-outline',
+	flag: 'material-symbols:flag-outline',
+	trophy: 'material-symbols:workspace-premium-outline',
+	apps: 'material-symbols:apps-outline'
 }
 
-// 图标到 uni-icons type 的映射
-export const IconUniTypeMap = {
-	favorite: 'heart-filled',
-	cake: 'calendar',
-	event: 'calendar-filled',
-	star: 'star-filled',
-	heart: 'heart',
-	gift: 'gift-filled',
-	balloon: 'flag-filled',
-	flower: 'fire-filled',
-	apps: 'bars'
+// 获取图标的 lime-icon name
+export function getIconLimeName(iconType) {
+	return IconLimeNameMap[iconType] || 'material-symbols:favorite-outline'
 }
 
 // 获取图标的 emoji 表示

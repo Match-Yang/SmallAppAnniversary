@@ -6,7 +6,7 @@
 		<!-- 顶部标题栏 -->
 		<view class="top-bar">
 			<view class="close-btn" @click="handleBack">
-				<text class="close-icon">✕</text>
+				<l-icon name="material-symbols:close" :size="20" color="#181113"></l-icon>
 			</view>
 			<text class="page-title">{{ isEditMode ? '更新纪念日' : '添加纪念日' }}</text>
 		</view>
@@ -78,7 +78,7 @@
 				<text class="section-label">分类</text>
 				<view class="category-selector" @click="showCategoryPicker = true">
 					<view class="category-icon-wrapper">
-						<uni-icons :type="getIconUniType(selectedCategory?.icon || 'favorite')" :size="24" color="#ee2b5b"></uni-icons>
+						<l-icon :name="getIconLimeName(selectedCategory?.icon || 'favorite')" :size="24" color="#ee2b5b"></l-icon>
 					</view>
 					<text class="category-name">{{ selectedCategory?.displayName || '请选择' }}</text>
 				</view>
@@ -193,7 +193,7 @@
 						@click="selectCategory(item)"
 					>
 						<view class="category-icon-wrapper">
-							<uni-icons :type="getIconUniType(item.icon)" :size="28" :color="item.id === selectedCategory?.id ? '#ee2b5b' : '#181113'"></uni-icons>
+							<l-icon :name="getIconLimeName(item.icon)" :size="28" :color="item.id === selectedCategory?.id ? '#ee2b5b' : '#181113'"></l-icon>
 						</view>
 						<text class="category-item-name">{{ item.displayName }}</text>
 					</view>
@@ -225,7 +225,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useAnniversaryStore } from '../../store/index.js'
-import { CalendarType, BuiltInCategories, getIconUniType } from '../../utils/constants.js'
+import { CalendarType, BuiltInCategories, getIconLimeName } from '../../utils/constants.js'
 import { formatDateDisplayByCalendar } from '../../utils/dateUtils.js'
 import CalendarPicker from '../../components/CalendarPicker/CalendarPicker.vue'
 
@@ -439,15 +439,11 @@ onMounted(() => {
 	left: 20px;
 	width: 40px;
 	height: 40px;
+	background-color: transparent;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.close-icon {
-	font-size: 20px;
-	color: #181113;
-	line-height: 1;
+	flex-shrink: 0;
 }
 
 .page-title {
@@ -490,6 +486,7 @@ onMounted(() => {
 	border-radius: 12px;
 	padding: 0 16px;
 	font-size: 16px;
+	box-sizing: border-box;
 }
 
 .input-placeholder {
@@ -500,7 +497,7 @@ onMounted(() => {
 .toggle-section {
 	display: flex;
 	height: 48px;
-	background-color: rgba(0, 0, 0, 0.05);
+	background-color: #f0eeee;
 	border-radius: 12px;
 	padding: 4px;
 	margin-bottom: 16px;
@@ -656,7 +653,7 @@ onMounted(() => {
 	flex: 1;
 	height: 36px;
 	border-radius: 8px;
-	background-color: rgba(0, 0, 0, 0.05);
+	background-color: #f0eeee;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -686,7 +683,7 @@ onMounted(() => {
 
 .time-picker-view {
 	height: 220px;
-	background-color: #f5f5f5;
+	background-color: #f0eeee;
 	border-radius: 12px;
 }
 
@@ -895,8 +892,8 @@ onMounted(() => {
 .btn-modal-close {
 	width: 100%;
 	height: 44px;
-	background-color: #f5f5f5;
-	color: #333;
+	background-color: #f0eeee;
+	color: #181113;
 	border-radius: 8px;
 	border: none;
 	font-size: 16px;
@@ -905,8 +902,8 @@ onMounted(() => {
 .btn-modal-cancel {
 	flex: 1;
 	height: 44px;
-	background-color: #f5f5f5;
-	color: #333;
+	background-color: #f0eeee;
+	color: #181113;
 	border-radius: 8px;
 	border: none;
 	font-size: 16px;

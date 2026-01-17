@@ -10,7 +10,7 @@
 				<text class="title-text">我的纪念日</text>
 			</view>
 			<view class="add-btn" @click="handleAdd">
-				<text class="add-icon">+</text>
+				<l-icon name="material-symbols:add" :size="24" color="#ee2b5b"></l-icon>
 			</view>
 		</view>
 
@@ -29,7 +29,7 @@
 				</view>
 				<!-- 添加分类按钮 -->
 				<view class="add-category-btn" @click="showAddCategory">
-					<text class="add-small-icon">+</text>
+					<l-icon name="material-symbols:add" :size="18" color="#ee2b5b"></l-icon>
 				</view>
 			</view>
 		</scroll-view>
@@ -37,12 +37,11 @@
 		<!-- 纪念日列表 -->
 		<scroll-view class="anniversary-list" scroll-y>
 			<!-- 空状态 -->
-			<view v-if="isEmpty" class="empty-state">
-				<view class="empty-icon">
-					<text class="empty-icon-text">+</text>
+			<view v-if="isEmpty" class="empty-state-wrapper">
+				<view class="empty-state">
+					<text class="empty-title">还没有纪念日</text>
+					<text class="empty-hint">点击右上角的 + 按钮添加第一个纪念日</text>
 				</view>
-				<text class="empty-title">还没有纪念日</text>
-				<text class="empty-hint">点击右上角的 + 按钮添加第一个纪念日</text>
 			</view>
 
 			<!-- 列表项 -->
@@ -55,7 +54,7 @@
 				>
 					<view class="item-left">
 						<view class="item-icon">
-							<uni-icons :type="getIconUniType(item.icon)" :size="24" color="#ee2b5b"></uni-icons>
+							<l-icon :name="getIconLimeName(item.icon)" :size="24" color="#ee2b5b"></l-icon>
 						</view>
 						<view class="item-info">
 							<text class="item-title">{{ item.title }}</text>
@@ -126,9 +125,8 @@
 								@click="newCategoryIcon = icon.value"
 							>
 								<view class="icon-circle">
-									<uni-icons :type="icon.type" :size="24" :color="newCategoryIcon === icon.value ? '#ee2b5b' : '#181113'"></uni-icons>
+									<l-icon :name="icon.iconName" :size="24" :color="newCategoryIcon === icon.value ? '#ee2b5b' : '#181113'"></l-icon>
 								</view>
-								<text class="icon-label">{{ icon.label }}</text>
 							</view>
 						</view>
 					</view>
@@ -161,7 +159,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useAnniversaryStore } from '../../store/index.js'
-import { BuiltInCategories, CategoryIcons, getIconUniType } from '../../utils/constants.js'
+import { BuiltInCategories, CategoryIcons, getIconLimeName } from '../../utils/constants.js'
 import { formatDateDisplayByCalendar, getYearsText } from '../../utils/dateUtils.js'
 
 const store = useAnniversaryStore()
@@ -320,17 +318,7 @@ onMounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.add-icon {
-	font-size: 28px;
-	color: #ee2b5b;
-	line-height: 40px;
-	height: 40px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	margin-top: -3px;
+	flex-shrink: 0;
 }
 
 /* 分类筛选器 */
@@ -372,24 +360,26 @@ onMounted(() => {
 .add-category-btn {
 	width: 36px;
 	height: 36px;
-	background-color: rgba(0, 0, 0, 0.05);
+	background-color: #ffffff;
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: 18px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.add-small-icon {
-	font-size: 18px;
-	color: #ee2b5b;
-	line-height: 1;
+	flex-shrink: 0;
 }
 
 /* 纪念日列表 */
 .anniversary-list {
 	flex: 1;
-	padding: 0 24px 24px;
+}
+
+/* 空状态容器 - 用于居中 */
+.empty-state-wrapper {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	padding-top: 64px;
 }
 
 /* 空状态 */
@@ -397,23 +387,17 @@ onMounted(() => {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	padding: 64px 32px;
+	text-align: center;
 }
 
 .empty-icon {
 	width: 80px;
 	height: 80px;
-	background-color: rgba(238, 43, 91, 0.1);
+	background-color: rgba(167, 139, 250, 0.08);
 	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.empty-icon-text {
-	font-size: 40px;
-	color: rgba(238, 43, 91, 0.5);
 }
 
 .empty-title {
@@ -431,6 +415,7 @@ onMounted(() => {
 
 /* 列表项 */
 .list-items {
+	padding: 0 24px 24px;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -643,8 +628,8 @@ onMounted(() => {
 }
 
 .btn-modal-cancel {
-	background-color: #f5f5f5;
-	color: #333;
+	background-color: #f0eeee;
+	color: #181113;
 }
 
 .btn-modal-confirm {
@@ -671,7 +656,7 @@ onMounted(() => {
 .category-input {
 	width: 100%;
 	height: 48px;
-	background-color: #f5f5f5;
+	background-color: #f0eeee;
 	border-radius: 8px;
 	padding: 0 16px;
 	font-size: 16px;
@@ -723,16 +708,6 @@ onMounted(() => {
 .icon-item.selected .icon-circle {
 	background-color: rgba(238, 43, 91, 0.1);
 	border-color: #ee2b5b;
-}
-
-.icon-label {
-	font-size: 10px;
-	color: #6b7280;
-}
-
-.icon-item.selected .icon-label {
-	color: #ee2b5b;
-	font-weight: bold;
 }
 
 /* 底部抽屉样式 */

@@ -135,3 +135,11 @@ Vue 3 based cross-platform framework. Configured for multiple platforms via `man
 - `manifest.json` - Platform configurations (WeChat, Alipay, Baidu, Toutiao, 5+ App)
 - `pages.json` - Page routing and configuration
 - `uni.scss` - Global styles
+
+**Icon Usage:**
+本项目使用 **lime-icon** 插件加载图标。
+- 图标来源：https://icones.js.org/collection/material-symbols
+- 使用示例：
+  ```vue
+  <l-icon name="icon-park-outline:acoustic" />
+  ```
