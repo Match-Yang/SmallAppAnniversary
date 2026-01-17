@@ -1,0 +1,81 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Uni-app
+unpackage/
+.hbuilderx/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temp files
+*.tmp
+*.temp
+.cache/
+
+# Build output
+dist/
+.temp/
+
+# Android (if using native)
+*.apk
+*.ap_
+*.aab
+local.properties
+.externalNativeBuild
+.cxx/
+.gradle/
+
+# iOS (if using native)
+*.ipa
+*.dSYM.zip
+*.dSYM
+Pods/
+
+# WeChat Mini Program (if using)
+.miniprogram/
+.miniprogram_npm/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.bak
+*.swp
+*~
+
+android-native
