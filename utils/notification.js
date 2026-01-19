@@ -5,12 +5,49 @@
 // 通知渠道ID
 const CHANNEL_ID = 'anniversary_reminder'
 
+/**
+ * 说明（鸿蒙特别重要）：
+ * - 本文件使用的 `uni.createPushMessage` 更接近“本地通知/本地推送”能力。
+ * - 在部分平台（尤其鸿蒙）上，应用被 kill 后 **不保证** 仍能触发本地定时通知。
+ * - 若你需要“应用被 kill 后仍能收到通知”，通常要接入 **厂商推送/uni-push**（系统级通知消息）。
+ */
+
+function isFunction(fn) {
+	return typeof fn === 'function'
+}
+
+/**
+ * 尝试检测通知权限（不同端返回结构不同；做 best-effort）。
+ * - Android/iOS/部分端可用：uni.getAppAuthorizeSetting()
+ * - 鸿蒙：很多情况下还需要用户在系统设置里开启应用通知开关
+ */
+function getNotificationAuthorizeSettingSafe() {
+	try {
+		if (isFunction(uni.getAppAuthorizeSetting)) {
+			const setting = uni.getAppAuthorizeSetting()
+			return setting || null
+		}
+	} catch (e) {
+		// ignore
+	}
+	return null
+}
+
+function isNotificationAuthorized() {
+	const setting = getNotificationAuthorizeSettingSafe()
+	// 尽量兼容字段名（不同平台/版本可能不同）
+	if (!setting) return true
+	if (typeof setting.notificationAuthorized === 'boolean') return setting.notificationAuthorized
+	if (typeof setting.notificationsAuthorized === 'boolean') return setting.notificationsAuthorized
+	return true
+}
+
 // 初始化通知渠道（Android 8.0+）
 function initNotificationChannel() {
 	// #ifdef APP-PLUS
 	// Android 8.0+ 需要创建通知渠道
-	const channelManager = uni.getChannelManager()
-	if (channelManager) {
+	const channelManager = isFunction(uni.getChannelManager) ? uni.getChannelManager() : null
+	if (channelManager && isFunction(channelManager.setPushChannel)) {
 		channelManager.setPushChannel({
 			channelId: CHANNEL_ID,
 			channelDesc: '纪念日提醒通知',
@@ -86,6 +123,15 @@ function getDelaySeconds(reminderDate) {
  */
 function scheduleReminder(anniversary, daysBefore) {
 	// #ifdef APP-PLUS
+	if (!isFunction(uni.createPushMessage)) {
+		console.warn('[通知] 当前平台不支持 uni.createPushMessage，已跳过:', { platform: 'unknown' })
+		return
+	}
+	if (!isNotificationAuthorized()) {
+		console.warn('[通知] 通知权限未开启/未授权，已跳过:', anniversary?.title)
+		return
+	}
+
 	const reminderDate = calculateNextReminderTime(anniversary, daysBefore)
 	if (!reminderDate) {
 		console.log('[通知] 提醒时间已过，跳过:', anniversary.title, daysBefore, '天前')

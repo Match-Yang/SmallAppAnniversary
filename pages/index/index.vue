@@ -84,6 +84,7 @@
 						<text v-else-if="!item.status?.isUpcoming" class="years-text ended">已结束</text>
 
 						<!-- 通知图标 -->
+						<!-- #ifdef APP-PLUS -->
 						<view class="notification-btn" @click.stop="toggleNotification(item.id)">
 							<l-icon
 								:name="item.hasNotification && canNotify(item) ? 'material-symbols:notifications-active-outline' : 'material-symbols:notifications-outline'"
@@ -91,6 +92,7 @@
 								:color="item.hasNotification && canNotify(item) ? '#ee2b5b' : '#999'"
 							></l-icon>
 						</view>
+						<!-- #endif -->
 					</view>
 				</view>
 			</view>

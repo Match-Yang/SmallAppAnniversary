@@ -1,6 +1,10 @@
 // @ts-nocheck
-// #ifndef APP-ANDROID || APP-HARMONY
+// 注意：在部分端（尤其 APP-ANDROID / APP-HARMONY）直接 import json 可能不可用或被打包策略改变，
+// 这里统一走 jsonUrl（由运行时读取文件）以避免启动期异常导致白屏。
+// #ifndef APP-ANDROID
+// #ifndef APP-HARMONY
 import defalutIconList from '@/uni_modules/lime-icon/static/icons.json';
+// #endif
 // #endif
 
 // 条件导入：根据不同的编译环境导入不同的Vue API
@@ -711,11 +715,11 @@ export function useIcon(name : MaybeRef<string>, options : UseIconOptions = {}) 
 registerFontIcon({
 	prefix: 'l',
 	fontFamily: 'l',
-	// #ifndef APP-ANDROID || UNI-APP-X && APP-HARMONY
-	icons: defalutIconList,
-	// #endif
-	// #ifdef APP-ANDROID || UNI-APP-X && APP-HARMONY
+	// #ifdef APP-ANDROID || APP-HARMONY
 	jsonUrl: '/uni_modules/lime-icon/static/icons.json'
+	// #endif
+	// #ifndef APP-ANDROID || APP-HARMONY
+	icons: defalutIconList,
 	// #endif
 })
 

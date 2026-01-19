@@ -82,6 +82,7 @@
 			</view>
 
 			<!-- 提醒设置 -->
+			<!-- #ifdef APP-PLUS -->
 			<view class="reminder-section" v-if="shouldShowReminder">
 				<view class="reminder-header">
 					<text class="section-title">提醒设置</text>
@@ -153,6 +154,7 @@
 					</view>
 				</template>
 			</view>
+			<!-- #endif -->
 		</view>
 	</scroll-view>
 
@@ -247,6 +249,11 @@ const formData = ref({
 	reminderMinute: 0,
 	isPm: false
 })
+
+// 非 APP-PLUS 平台隐藏提醒功能：新建默认关闭通知（编辑模式会保留原值，不主动改写）
+// #ifndef APP-PLUS
+formData.value.hasNotification = false
+// #endif
 
 // 提醒天数集合
 const reminderDaysSet = ref(new Set([1]))
