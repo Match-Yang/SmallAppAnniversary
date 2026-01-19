@@ -1,7 +1,7 @@
 {
-    "name" : "Anniversary",
-    "appid" : "",
-    "description" : "",
+    "name" : "我的纪念日",
+    "appid" : "__UNI__F0B4592",
+    "description" : "每一个特殊的日子，都值得被铭记。生日、结婚纪念日、恋爱纪念日、入职纪念日...生活中有太多值得纪念的日子，但在忙碌的日常中，我们总会不经意间忘记。纪念日管家帮你轻松管理所有重要时刻，不错过任何一份心意。",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -85,6 +85,13 @@
                     "storeFile" : "c:\\Users\\26966\\AppData\\Roaming\\HBuilder X\\extensions\\launcher\\agc-certs\\1768728709188.p12",
                     "storePassword" : "0000001BF271D576703737F12D4C2C53CDDD5DB659A770C481CF6EE30CD69BD9EECD78E16F1B830E48209A"
                 }
+            },
+            "icons" : {
+                "foreground" : "static/logo.png",
+                "background" : "static/logo-bg.png"
+            },
+            "splashScreens" : {
+                "startWindowIcon" : "static/logo.png"
             }
         }
     }
